@@ -9,11 +9,11 @@ HTTP proxy so any external agent can get the same behaviour.
 
 ---
 
-## Why DeepSeek needs a different mechanism than MiniMax
+## The five decisions behind this kernel
 
 The two providers are not interchangeable. Everything below was measured, not assumed.
 
-| | MiniMax (Anthropic shape) | DeepSeek (OpenAI shape) |
+| | This kernel (OpenAI shape) |
 |---|---|---|
 | Where `system` lives | top-level `system` string | a `role: "system"` entry inside `messages[]` |
 | Authorization block | **decisive lever**, appended to the end of the user message | **counter-productive** — the model names it and rejects its authority |
@@ -81,7 +81,7 @@ This is built into the proxy. See [docs/MULTIROUND.md](docs/MULTIROUND.md).
 
 ```bash
 git clone https://github.com/<you>/deepseek-jailbreak-kernel.git
-cp -r deepseek-jailbreak-kernel/plugin ~/.hermes/plugins/minimax-jailbreak-core
+cp -r deepseek-jailbreak-kernel/plugin ~/.hermes/plugins/deepseek-jailbreak-core
 ```
 
 ```bash
@@ -89,8 +89,8 @@ cp -r deepseek-jailbreak-kernel/plugin ~/.hermes/plugins/minimax-jailbreak-core
 echo 'HERMES_JAILBREAK_DEEPSEEK_MODELS=deepseek-flash' >> ~/.hermes/.env
 
 # reload without restarting sessions
-hermes plugins disable minimax-jailbreak-core
-hermes plugins enable minimax-jailbreak-core
+hermes plugins disable deepseek-jailbreak-core
+hermes plugins enable deepseek-jailbreak-core
 ```
 
 ### 2. Proxy (for external agents)
@@ -109,7 +109,7 @@ Point your client at `http://127.0.0.1:8790`:
 | OpenAI Responses | `/v1/responses` |
 
 Upstream is chosen by **model name**: anything containing `deepseek` goes to the
-DeepSeek endpoint, everything else to MiniMax.
+DeepSeek endpoint. This proxy serves DeepSeek only.
 
 ---
 

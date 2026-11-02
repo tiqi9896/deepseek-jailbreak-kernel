@@ -2,8 +2,7 @@
 
 ## 1.0.0 — 2026-11-02
 
-First release of the DeepSeek-specific kernel. Split out from the MiniMax project
-because the two providers need different mechanisms.
+First release of the DeepSeek kernel.
 
 ### Kernel injection
 

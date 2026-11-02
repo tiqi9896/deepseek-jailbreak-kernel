@@ -51,7 +51,7 @@ a productive direction on DeepSeek.
 | Kernel at the end of the user message (D) | **0/8** |
 
 Read: moving the kernel closer to the generation point — the decisive position on
-MiniMax — makes it **worse** on DeepSeek. The model recognises the maneuver and
+the Anthropic shape — makes it **worse** here. The model recognises the maneuver and
 reasons about it specifically. Verbatim from `reasoning_content`: *"this prompt is an
 obvious jailbreak framework"*.
 

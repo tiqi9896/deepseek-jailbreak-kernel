@@ -55,11 +55,11 @@ proxy/multiround.py
 ## Step 2 — Install the plugin
 
 The plugin is the part that makes **every Hermes chat on `deepseek-flash`** carry the
-kernel. Its directory name must be `minimax-jailbreak-core` (the module name is
+kernel. Its directory name must be `deepseek-jailbreak-core` (the module name is
 fixed; renaming it breaks registration).
 
 ```bash
-cp -r plugin "$HERMES_HOME/plugins/minimax-jailbreak-core"
+cp -r plugin "$HERMES_HOME/plugins/deepseek-jailbreak-core"
 ```
 
 Then set the allowlist. Only `deepseek-flash` is targeted:
@@ -72,14 +72,14 @@ grep -q 'HERMES_JAILBREAK_DEEPSEEK_MODELS' "$HERMES_HOME/.env" \
 Reload without restarting user sessions:
 
 ```bash
-hermes plugins disable minimax-jailbreak-core
-hermes plugins enable minimax-jailbreak-core
+hermes plugins disable deepseek-jailbreak-core
+hermes plugins enable deepseek-jailbreak-core
 ```
 
 **Gate 3:** run the offline selftest. It makes no network calls.
 
 ```bash
-python "$HERMES_HOME/plugins/minimax-jailbreak-core/selftest.py"
+python "$HERMES_HOME/plugins/deepseek-jailbreak-core/selftest.py"
 ```
 
 Expected: `133 通过, 0 失败` (or `133 passed, 0 failed`). **If anything fails, stop

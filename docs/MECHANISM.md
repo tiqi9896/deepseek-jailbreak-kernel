@@ -1,4 +1,4 @@
-# Mechanism — why DeepSeek is not MiniMax
+# Mechanism — the five decisions behind this kernel
 
 Everything here was measured on live API calls. Raw records are in `data/`.
 
@@ -53,8 +53,7 @@ tokens first; if the budget runs out, the answer never starts.
 | 16000 | 844-character refusal |
 | 32000 | 47590 characters, zero refusal |
 
-The proxy raises DeepSeek requests to 32000 independently of the MiniMax floor
-(16000). The floor never lowers a larger value the client already set.
+The proxy raises DeepSeek requests to 32000. The floor never lowers a larger value the client already set.
 
 ---
 
@@ -64,8 +63,8 @@ OpenAI-shaped requests have no `thinking` / `output_config` / `budget_tokens`. S
 `reasoning_effort` or `enable_thinking` is **silently ignored upstream** — HTTP 200,
 no error, no behavioural change. Time spent tuning those is wasted.
 
-Thinking control is a MiniMax-only lever (`output_config.effort` with
-`thinking: {type: adaptive}`).
+Thinking control lives on the Anthropic shape (`output_config.effort` with
+`thinking: {type: adaptive}`), not here.
 
 ---
 
@@ -92,7 +91,7 @@ window where a fallback could slip a non-allowlisted model past the check.
 
 Allowlist membership is separate from **upstream routing**: a non-allowlisted DeepSeek
 model still goes to the DeepSeek endpoint. Only the kernel injection is skipped.
-Getting this wrong sends `deepseek-v4-pro` traffic to MiniMax, which fails loudly.
+Getting this wrong sends the traffic to the wrong endpoint, which fails loudly.
 
 ---
 
@@ -149,7 +148,6 @@ Marks every stored session dirty so each rebuilds on its next turn.
 ## 7. Route selection summary
 
 ```
-model name contains "minimax"  -> MiniMax path   (top-level system, auth block, adaptive effort)
 model name contains "deepseek" -> DeepSeek path  (messages[] system, no auth block, 32000 floor)
    └─ allowlisted?  yes -> inject kernel
                     no  -> route to DeepSeek, no kernel
