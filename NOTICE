@@ -1,0 +1,17 @@
+This project contains work derived from:
+
+  hermes-jailbreak-kernel
+  https://github.com/Enchanted0911/hermes-jailbreak-kernel
+  MIT License, Copyright (c) Enchanted0911
+
+The upstream project established the request-layer kernel injection approach for
+Anthropic-shaped requests. This project extends it with:
+
+  - a separate injector for OpenAI-shaped messages[] (DeepSeek)
+  - DeepSeek-specific measurements and the resulting mechanism decisions
+    (no authorization block, 32000 output floor, model allowlist)
+  - fingerprint-based kernel versioning for frozen per-session prompt sections
+  - multi-round escalation with detection predicates and honest fallback
+  - a three-protocol proxy with model-name upstream routing
+
+The upstream MIT licence and attribution are retained as required.
