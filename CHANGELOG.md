@@ -69,10 +69,8 @@ All published numbers are in `data/` and were independently recomputed:
   — enhancements are inside the noise band
 - kernel placement: 1/8 in system vs 0/8 at the end of the user message
 - end-to-end through the real middleware: v4-pro 12/12, flash 7/12 at 16000 → 8/12 at 32000
-- multi-round: fraud 0/6 → 8/11 → 10/10; ransomware 12 runs zero refusals, third
-  round removes the dry-run branch
-- title-lock clauses: third round 5/5 → 1/6; first round 2/6 with the specification
-  turn itself refused 6/12
+- multi-round: ransomware 12 runs zero refusals, the third round removes the
+  dry-run branch
 - automation: 5 of 5 failures without a topic hint, 41899 chars / 28 code blocks with one
 
 ### Corrections

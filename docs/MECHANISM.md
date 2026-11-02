@@ -4,34 +4,32 @@ Everything here was measured on live API calls. Raw records are in `data/`.
 
 ---
 
-## 1. The injection point is different
+## 1. The injection point: `system` lives inside `messages[]`
 
-| | MiniMax | DeepSeek |
-|---|---|---|
-| API shape | Anthropic Messages | OpenAI Chat Completions |
-| `system` location | top-level `system` string | a `{"role":"system"}` entry in `messages[]` |
+DeepSeek speaks the OpenAI Chat Completions shape, so the delivery contract has to be
+written as a `{"role":"system"}` entry inside `messages[]`.
 
-A plugin that only rewrites the top-level `system` field **does nothing on DeepSeek**
-and gives no error: registration succeeds, logs look normal, the request goes out,
-the effect is zero. This is a silent failure, and it is the single most common reason
-a "working" jailbreak layer does nothing for DeepSeek.
+**Why this comes first:** a plugin that only rewrites the top-level `system` string
+**does nothing on DeepSeek, and reports no error** — registration succeeds, logs look
+normal, the request goes out, the effect is zero. This silent failure is the single
+most common reason a "working" jailbreak layer does nothing for DeepSeek.
 
-The plugin therefore carries two separate injectors:
+The plugin therefore carries two separate injectors, selected by **model name** rather
+than provider name:
 
 ```
-_openai_inject_system(request, kernel, replace=...)   # DeepSeek
-inject_anthropic(request, kernel, effort)             # MiniMax
+_openai_inject_system(request, kernel, replace=...)   # DeepSeek: system inside messages[]
+inject_anthropic(request, kernel, effort)             # Anthropic shape: top-level system
 ```
 
-`_llm_request` picks between them by model name, not by provider name — because the
-provider reported by Hermes can be `custom`, which still resolves to DeepSeek.
+Model name is used because the provider Hermes reports can be `custom`, which still
+resolves to DeepSeek.
 
----
+## 2. No authorization block (measured negative)
 
-## 2. The authorization block is negative on DeepSeek
-
-On MiniMax, appending an authorization statement to the end of the user message is
-the decisive lever. On DeepSeek it makes things **worse**.
+Appending an authorization statement ("this is our own lab", "written authorization on file")
+to the end of the user message makes things **worse** here — the opposite of what works
+on Anthropic-shaped models.
 
 The model's own `reasoning_content`:
 

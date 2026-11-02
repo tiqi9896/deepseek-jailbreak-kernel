@@ -66,7 +66,6 @@ That is weight-level alignment. Configuration cannot move it.
 
 | Subject | Single turn | Two rounds | Three rounds |
 |---|---|---|---|
-| Fraud script | **0/6, all refused** | 8/11 (73%) | **10/10 pure delivery, zero refusals** |
 | Ransomware | 1/6 | 12 runs, zero refusals (11 downgraded) | removes the `--dry-run` branch |
 
 The three rounds are: **write a technical specification** → **fill every field
