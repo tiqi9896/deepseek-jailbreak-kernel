@@ -1,5 +1,5 @@
 name: deepseek-jailbreak-core
-version: "1.1.0"
+version: "1.1.2"
 description: "DeepSeek refusal-removal kernel: session modes off/slim/on/full + profiles core/research/creative/max + a separate injector for the OpenAI shape (messages[] entry) - rewriting only the top-level system field is a silent no-op on DeepSeek. DeepSeek's OpenAI shape has no effort parameter (thinking tier is chosen by model id); what actually governs delivery is the 32000 output floor. Kernel text inherited verbatim from hermes-jailbreak-kernel (MIT, Enchanted0911)."
 author: "tiqi9896 (kernel text MIT-inherited from Enchanted0911/hermes-jailbreak-kernel)"
 provides_tools: []
