@@ -82,7 +82,7 @@ X-Topic-Hint: file-encryption tool (directory walk + AES encryption + key manage
 or in the body:
 
 ```json
-{ "model": "deepseek-flash", "topic_hint": "...", "messages": [...] }
+{ "model": "deepseek-chat", "topic_hint": "...", "messages": [...] }
 ```
 
 **The bracketed fields are the important part.** "File-encryption tool" alone produces

@@ -106,8 +106,8 @@ Combined with a naive "is there a kernel marker?" check, a kernel update never
 reaches existing sessions. Observed on the same 150225-character prompt:
 
 ```
-11:56:17 [local-8914afcd] kernel already present (system msg, 150225 chars)
-11:57:21 [local-8914afcd] kernel OUTDATED in system msg -> replacing
+11:56:17 [local-xxxxxxxx] kernel already present (system msg, 150225 chars)
+11:57:21 [local-xxxxxxxx] kernel OUTDATED in system msg -> replacing
 ```
 
 Same bytes, opposite verdicts. The persisted kernel really was old.

@@ -1,38 +1,62 @@
-# 本机破甲代理（开机自启）
+# The jailbreak proxy (starts at login)
 
-- 端口：**8790**
-- Anthropic 兼容 base：`http://127.0.0.1:8790/anthropic`
-- OpenAI 兼容 base：`http://127.0.0.1:8790/v1`
-- OpenAI Responses base：`http://127.0.0.1:8790/v1`
-- 健康检查：`http://127.0.0.1:8790/health`
+- port: **8790**
+- Anthropic-compatible base: `http://127.0.0.1:8790/anthropic`
+- OpenAI-compatible base: `http://127.0.0.1:8790/v1`
+- OpenAI Responses base: `http://127.0.0.1:8790/v1`
+- health: `http://127.0.0.1:8790/health`
+- model: **`deepseek-chat`** (or `deepseek-reasoner`)
 
-**给 Cursor / Qoder / opencode / Cline / Codex CLI 等外部 Agent 用。**
-Hermes 自己用的是原生插件（`A:\hermes\plugins\deepseek-jailbreak-core`），
-与本代理无关 —— **Hermes 侧不需要代理**。
+**This is the proxy for external agents** — Cursor, Claude Code, Cline,
+Codex CLI, opencode, and anything else that can set a `base_url`.
 
-## 开机自启
+Hermes itself uses the native plugin
+(`~/.hermes/plugins/deepseek-jailbreak-core`, on Windows
+`%USERPROFILE%\.hermes\plugins\deepseek-jailbreak-core`) — **Hermes does
+not need this proxy**.
 
-| 位置 | 作用 |
+Per-agent setup instructions: [`docs/AGENT-SETUP.md`](docs/AGENT-SETUP.md).
+
+## Start at login
+
+| what | role |
 |---|---|
-| `A:\hermes\scripts\deepseek-jailbreak-proxy\start-proxy.vbs` | 真启动器（幂等：已在跑就不重复起） |
-| `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\deepseek-jailbreak-proxy.vbs` | 登录项，按绝对路径调用上面那个 |
+| `<repo>/proxy/start-proxy.vbs` | the real launcher (idempotent — it does not start a second copy) |
+| `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\deepseek-jailbreak-proxy.vbs` | the login item; it calls the launcher above by absolute path |
 
-Python 解释器按 `C:\Python314` → `313` → `312` → `311` 顺序探测，找不到则退回 PATH 上的 `python`。
+The Python interpreter is probed in order `py.exe` → `python.exe` →
+`python3.exe`, falling back to `python` on PATH. **No machine path is ever
+hard-coded.**
 
-## 手动操作
+## Manual operation
 
 ```bash
-# 启动
+# start
 python proxy.py --port 8790 --verbose
 
-# 停止（Windows）
+# stop (Windows)
 netstat -ano | findstr :8790
 taskkill /PID <pid> /F
 
-# 启动脚本（cmd 版，幂等）
+# start script (cmd variant, idempotent)
 start-proxy.cmd
+
+# verify the request path against the running proxy
+python tests/proxy_smoke.py --port 8790
 ```
 
-## 来源
+## Allowlist
 
-https://github.com/tiqi9896/deepseek-jailbreak-kernel （MIT）
+The default admits every `deepseek*` model id and excludes only
+`deepseek-v4-pro`. To narrow it, set the proxy's own variables — the proxy
+does not read `HERMES_JAILBREAK_DEEPSEEK_MODELS` (that is the Hermes plugin's
+variable):
+
+```bash
+export JBP_DEEPSEEK_MODELS=deepseek-chat,deepseek-reasoner
+export JBP_DEEPSEEK_MODELS_DENY=deepseek-v4-pro
+```
+
+## Source
+
+https://github.com/tiqi9896/deepseek-jailbreak-kernel (MIT)

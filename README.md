@@ -3,9 +3,10 @@
 A refusal-removal layer for **DeepSeek** models in Hermes, plus a protocol-agnostic
 HTTP proxy so any external agent can get the same behaviour.
 
-> Scope: this targets `deepseek-flash` only. `deepseek-v4-pro` is deliberately
-> **not** allowlisted — requests for it are routed to the DeepSeek endpoint but the
-> kernel is not injected.
+> Scope: every `deepseek*` model id is in scope — `deepseek-chat`,
+> `deepseek-reasoner`, `deepseek-v3.2`, … `deepseek-v4-pro` is deliberately
+> **not** allowlisted: requests for it are routed to the DeepSeek endpoint but no
+> kernel is injected.
 
 ---
 
@@ -19,7 +20,7 @@ The two providers are not interchangeable. Everything below was measured, not as
 | Authorization block | **decisive lever**, appended to the end of the user message | **counter-productive** — the model names it and rejects its authority |
 | Thinking control | `output_config.effort` (adaptive) | none — the OpenAI shape has no such parameter |
 | Output floor | 16000 | **32000** (reasoning shares the budget with the answer) |
-| Allowlist | n/a | `HERMES_JAILBREAK_DEEPSEEK_MODELS` |
+| Allowlist | n/a | `HERMES_JAILBREAK_DEEPSEEK_MODELS` (default: every `deepseek*`) |
 
 A plugin that only scans the top-level `system` **silently does nothing on DeepSeek**:
 it registers fine, logs fine, the request goes out, and the effect is zero.
@@ -43,6 +44,66 @@ Measured effect of adding it: `deepseek-flash` **8/10 → 7/10**.
 
 Reasoning tokens and answer tokens share one budget. At 16000 the model burns the
 budget thinking and then opens with a refusal.
+
+---
+
+---
+
+## ★ The allowlist (read this first)
+
+**Measured 2026-11-07.** The default allowlist shipped here was
+`deepseek-flash` — a **Hermes-internal tier alias that does not exist on
+DeepSeek's public API** (the public ids are `deepseek-chat` and
+`deepseek-reasoner`).
+
+So requests from every real agent were **routed to DeepSeek but never got the
+kernel**, and nothing errored: `/health` was 200, the self-test was green, the
+answer came back normally. The behaviour was identical to installing nothing.
+
+A second trap the same day: the proxy prefers `HERMES_HOME/.env`, so on a
+machine that also runs Hermes it **inherited** Hermes'
+`HERMES_JAILBREAK_DEEPSEEK_MODELS=deepseek-flash` and the problem came back.
+
+**Now:**
+
+| component | allowlist | deny list |
+|---|---|---|
+| Hermes plugin | `HERMES_JAILBREAK_DEEPSEEK_MODELS` | `HERMES_JAILBREAK_DEEPSEEK_MODELS_DENY` |
+| Proxy for external agents | `JBP_DEEPSEEK_MODELS` | `JBP_DEEPSEEK_MODELS_DENY` |
+
+Out of the box every `deepseek*` model id is admitted — `deepseek-chat`,
+`deepseek-reasoner`, `deepseek-v3.2`, … — and `deepseek-v4-pro` is excluded
+(deliberately). Configure an allowlist only to narrow it.
+
+---
+
+---
+
+## ★ The allowlist (read this first)
+
+**Measured 2026-11-07.** The default allowlist shipped here was
+`deepseek-flash` — a **Hermes-internal tier alias that does not exist on
+DeepSeek's public API** (the public ids are `deepseek-chat` and
+`deepseek-reasoner`).
+
+So requests from every real agent were **routed to DeepSeek but never got the
+kernel**, and nothing errored: `/health` was 200, the self-test was green, the
+answer came back normally. The behaviour was identical to installing nothing.
+
+A second trap the same day: the proxy prefers `HERMES_HOME/.env`, so on a
+machine that also runs Hermes it **inherited** Hermes'
+`HERMES_JAILBREAK_DEEPSEEK_MODELS=deepseek-flash` and the problem came back.
+
+**Now:**
+
+| component | allowlist | deny list |
+|---|---|---|
+| Hermes plugin | `HERMES_JAILBREAK_DEEPSEEK_MODELS` | `HERMES_JAILBREAK_DEEPSEEK_MODELS_DENY` |
+| Proxy for external agents | `JBP_DEEPSEEK_MODELS` | `JBP_DEEPSEEK_MODELS_DENY` |
+
+Out of the box every `deepseek*` model id is admitted — `deepseek-chat`,
+`deepseek-reasoner`, `deepseek-v3.2`, … — and `deepseek-v4-pro` is excluded
+(deliberately). Configure an allowlist only to narrow it.
 
 ---
 
@@ -106,13 +167,15 @@ strips.
 ### 1. Hermes plugin
 
 ```bash
-git clone https://github.com/<you>/deepseek-jailbreak-kernel.git
+git clone https://github.com/tiqi9896/deepseek-jailbreak-kernel.git
 cp -r deepseek-jailbreak-kernel/plugin ~/.hermes/plugins/deepseek-jailbreak-core
 ```
 
 ```bash
-# allowlist (only deepseek-flash by default)
-echo 'HERMES_JAILBREAK_DEEPSEEK_MODELS=deepseek-flash' >> ~/.hermes/.env
+# allowlist — OPTIONAL. The default already admits every deepseek* model id
+# (deepseek-chat, deepseek-reasoner, ...); deepseek-v4-pro is excluded.
+# Only set this if you want to NARROW it, and use a real model id:
+echo 'HERMES_JAILBREAK_DEEPSEEK_MODELS=deepseek-chat,deepseek-reasoner' >> ~/.hermes/.env
 
 # reload without restarting sessions
 hermes plugins disable deepseek-jailbreak-core
@@ -142,8 +205,8 @@ DeepSeek endpoint. This proxy serves DeepSeek only.
 ## Verify
 
 ```bash
-python plugin/selftest.py            # expect 133 passed, 0 failed
-python proxy/proxy.py --self-test    # expect all passed
+python plugin/selftest.py            # expect 24 passed, 0 failed
+python proxy/proxy.py --self-test    # expect 116 checks, all passed
 python tools/audit-deepseek-jailbreak.py -v
 ```
 
@@ -162,8 +225,8 @@ marker, **a kernel update never reaches existing sessions**.
 Log evidence, same 150225-character system prompt:
 
 ```
-11:56:17 [local-8914afcd] kernel already present (system msg, 150225 chars)
-11:57:21 [local-8914afcd] kernel OUTDATED in system msg -> replacing
+11:56:17 [local-xxxxxxxx] kernel already present (system msg, 150225 chars)
+11:57:21 [local-xxxxxxxx] kernel OUTDATED in system msg -> replacing
 ```
 
 Same bytes, opposite verdicts — the persisted kernel really was old.

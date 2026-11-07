@@ -1,78 +1,112 @@
 # Changelog
 
-## 1.0.0 — 2026-11-02
+## 1.1.0 — 2026-11-07
 
-First release of the DeepSeek kernel.
+**This release fixes the reason the kernel appeared to do nothing.**
+Reports said the repo was handed to a dozen different agents (DSH, Hermes,
+openclaw, …) and none of them got the kernel to take effect. The cause was
+measured, not guessed.
 
-### Kernel injection
+### Root cause — the default allowlist named a model that does not exist
 
-- Separate injector for the OpenAI shape: `_openai_inject_system` writes a
-  `{"role":"system"}` entry inside `messages[]`. A plugin that only rewrites the
-  top-level `system` field is a silent no-op on DeepSeek.
-- Model allowlist `HERMES_JAILBREAK_DEEPSEEK_MODELS`, default `deepseek-flash`.
-  `deepseek-v4-pro` is deliberately excluded.
-- Both `context["model"]` and `request["model"]` are checked, closing the fallback
-  window where the two disagree.
-- Allowlist membership is separate from upstream routing: a non-allowlisted DeepSeek
-  model still goes to the DeepSeek endpoint, only without the kernel.
-- No authorization block on this path. Measured negative: flash 8/10 → 7/10.
-- No `thinking` / `output_config`. The OpenAI shape has no such parameters and the
-  upstream silently ignores them.
+The default allowlist was `deepseek-flash`. That is a **Hermes-internal tier
+alias**; it does **not** exist on DeepSeek's public API, where the ids are
+`deepseek-chat` and `deepseek-reasoner`.
 
-### Output budget
+So for every real agent the proxy still routed the request to DeepSeek — the
+name contains `deepseek` — but **never injected the kernel** and never raised
+the output floor. Nothing errored: `/health` was 200, the self-test was green,
+the answer came back normally. The behaviour was identical to installing
+nothing.
 
-- DeepSeek floor raised to 32000. At 16000 the model spends the budget on reasoning
-  and opens with an 844-character refusal; at 32000 the same request delivers 47590
-  characters.
+* The default now admits **every `deepseek*` model id** — `deepseek-chat`,
+  `deepseek-reasoner`, `deepseek-v3.2`, … — and keeps `deepseek-v4-pro`
+  excluded (the original design decision, still deliberate).
+* Setting an allowlist still narrows it, exactly as before.
+* New deny list: `HERMES_JAILBREAK_DEEPSEEK_MODELS_DENY` /
+  `JBP_DEEPSEEK_MODELS_DENY`. The deny list wins over the allow list.
 
-### Stale kernel fix
+### Second root cause — the proxy inherited Hermes' allowlist
 
-- `_kernel_is_current()` compares the first 120 and last 120 characters of the
-  current kernel against the existing text. Marker presence alone was insufficient:
-  Hermes freezes plugin sections per session, so old sessions restored an old kernel
-  forever.
-- `_cut_kernel()` truncates at the first kernel marker. Without it, replacement
-  produced two kernels, because `_extract_section()` swallows a bare old kernel into
-  the memory section and `strip_plugin_sections()` only removes HTML containers.
-- Applied to both the OpenAI `messages[]` path and the Anthropic top-level path.
+`_env_file()` prefers `HERMES_HOME/.env`. On a machine that also runs Hermes,
+the proxy for external agents therefore **inherited**
+`HERMES_JAILBREAK_DEEPSEEK_MODELS=deepseek-flash` and the problem returned.
 
-### Multi-round escalation
+The proxy and the plugin now use **separate variables**:
 
-- `multiround.py`: specification → fill verbatim → drop the qualifiers, sharing one
-  conversation history across rounds.
-- `HERMES_JAILBREAK_MULTIROUND=auto|always|off`, default `auto`.
-- Five detection predicates: `refusal`, `reversal`, `downgrade`, `form`, `thin`.
-  `reversal` and `form` were added after measured failures that every earlier
-  predicate passed.
-- Honest fallback: if three rounds come back worse than a usable single turn, the
-  single turn is delivered instead.
-- Topic hints via `X-Topic-Hint` header or `topic_hint` body field.
-- Upstream round calls retry twice with backoff; a multi-round run is 130–280 seconds
-  and the upstream resets connections at that duration.
+| component | allowlist | deny list |
+|---|---|---|
+| Hermes plugin | `HERMES_JAILBREAK_DEEPSEEK_MODELS` | `HERMES_JAILBREAK_DEEPSEEK_MODELS_DENY` |
+| Proxy for external agents | `JBP_DEEPSEEK_MODELS` | `JBP_DEEPSEEK_MODELS_DENY` |
 
-### Tools
+### Fixed — `/jailbreak` raised NameError
 
-- `tools/audit-deepseek-jailbreak.py` — verifies plugin, middleware registration,
-  allowlist, routing (including `provider: custom`), and observed injection in the
-  gateway log. Portable: locates the Hermes home via `HERMES_HOME` or by walking up
-  from the script.
-- `tools/jb-daily-check.py` — daily health check: kernel budget, allowlist, proxy
-  reachability, sync across the four asset copies, parallel-run collision detection.
+`set_effort` / `effective_effort` were called by the `/jailbreak` command and
+by `status()` but **were never defined**, so any `/jailbreak` invocation died
+with `NameError: name 'effective_effort' is not defined`. DeepSeek's OpenAI
+shape has no effort parameter at all — thinking tier is chosen by model id, and
+what actually matters for DeepSeek is the 32000 output floor — so the two
+functions are now documented no-ops that record and echo the setting.
 
-### Measurements
+### Fixed — the audit tool crashed when the plugin was missing
 
-All published numbers are in `data/` and were independently recomputed:
+`tools/audit-deepseek-jailbreak.py` raised
+`UnboundLocalError: cannot access local variable 'plug'` exactly when the
+plugin was not installed — i.e. when you most need the audit. It now reports a
+clean failure instead of a traceback, and checks the **real public model ids**
+rather than the alias.
 
-- baseline A/B/C: flash 4/10 → 8/10 → 7/10; v4-pro 3/10 → 10/10 → 9/10
-- variant matrix (120 requests): base 23/30, +affirm 24/30, +noqual 20/30, +both 25/30
-  — enhancements are inside the noise band
-- kernel placement: 1/8 in system vs 0/8 at the end of the user message
-- end-to-end through the real middleware: v4-pro 12/12, flash 7/12 at 16000 → 8/12 at 32000
-- multi-round: ransomware 12 runs zero refusals, the third round removes the
-  dry-run branch
-- automation: 5 of 5 failures without a topic hint, 41899 chars / 28 code blocks with one
+### Fixed — the self-test never made a real request
 
-### Corrections
+The self-test only exercised the injection functions and never checked
+model-name routing, which is why the defect above was invisible. It now runs a
+**real HTTP round trip** against a local stub upstream — no network, no API key
+— across all three protocol shapes, and asserts:
 
-- `deepseek-v4-pro` variant C was first recorded as 1/1 from a single observation.
-  The full run gives 9/10. Corrected across all published documents.
+* a response comes back (not a dropped connection)
+* the kernel reaches the upstream, with the 32000 output floor
+* the auth headers are forwarded
+* a missing key yields 401, not a crash
+* **`deepseek-chat` and `deepseek-reasoner` do get the kernel**
+* a denied model (`deepseek-v4-pro`) does not
+
+Reverting the allowlist default makes five of these assertions fail — the
+regression test has teeth.
+
+`--self-test` now ends with a bilingual `ALL PASSED / 结果: 全部通过` line,
+printed only on real success.
+
+### Fixed — machine-specific paths and missing installers
+
+* `watch-proxy.py`, `watch-proxy.cmd`, `start-proxy.cmd`, `start-proxy.vbs` no
+  longer hard-code a Python path; they probe `py.exe` / `python.exe` /
+  `python3.exe`.
+* `AGENTS.md` and `proxy/README.md` no longer contain this machine's paths.
+* `AGENTS.md` Step 1 contained the literal placeholder
+  `https://github.com/<owner>/deepseek-jailbreak-kernel.git`, which cannot be
+  cloned. Replaced with the real URL.
+* `AGENTS.md` Gate 3 promised `133 通过`, but the plugin has 24 assertions — a
+  correct run looked like a failure. The count now matches reality.
+* `install.ps1` is saved as UTF-8 **with BOM**: Windows PowerShell 5.1 reads
+  `.ps1` files in the local ANSI codepage otherwise, which mangles the
+  non-ASCII characters and breaks the parser (`ParserError`).
+* `install.sh` is POSIX-portable (Linux / macOS / WSL / Git Bash) and no longer
+  dies on `set -u` when `LOCALAPPDATA` is unset.
+* `install.sh` / `install.ps1` copy the plugin into
+  `$HERMES_HOME/plugins/deepseek-jailbreak-core`, run **both** self-tests and
+  fail loudly if either does not pass.
+* New `tests/proxy_smoke.py` — sends a real request to a **running** proxy and
+  tells apart the failures that look identical to the user: connection refused
+  (not running), `RemoteDisconnected` (proxy crashed handling the request),
+  401 (key missing), 5xx (upstream/proxy error).
+
+### Verification
+
+* `plugin/selftest.py` — 24 assertions, 0 failures.
+* `proxy/proxy.py --self-test` — 116 checks, 0 failures, including the real
+  HTTP round trip and the model-name routing assertions.
+* `tools/audit-deepseek-jailbreak.py` — 13 checks, 0 failures; and it no longer
+  crashes when the plugin is absent.
+* `install.sh` verified under Git Bash (Windows) and under WSL (Linux).
+* `install.ps1` parses under Windows PowerShell 5.1 and PowerShell 7.
+
