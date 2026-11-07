@@ -3,8 +3,8 @@
 A refusal-removal layer for **DeepSeek** models in Hermes, plus a protocol-agnostic
 HTTP proxy so any external agent can get the same behaviour.
 
-> Scope: every `deepseek*` model id is in scope — `deepseek-chat`,
-> `deepseek-reasoner`, `deepseek-v3.2`, … `deepseek-v4-pro` is deliberately
+> Scope: every `deepseek*` model id is in scope — `deepseek-flash`,
+> `deepseek-next`, `deepseek-next`, … `deepseek-v4-pro` is deliberately
 > **not** allowlisted: requests for it are routed to the DeepSeek endpoint but no
 > kernel is injected.
 
@@ -51,14 +51,22 @@ budget thinking and then opens with a refusal.
 
 ## ★ The allowlist (read this first)
 
-**Measured 2026-11-07.** The default allowlist shipped here was
-`deepseek-flash` — a **Hermes-internal tier alias that does not exist on
-DeepSeek's public API** (the public ids are `deepseek-chat` and
-`deepseek-reasoner`).
+**Measured 2026-11-07.** The default allowlist shipped here named exactly
+**one** model id.
 
-So requests from every real agent were **routed to DeepSeek but never got the
-kernel**, and nothing errored: `/health` was 200, the self-test was green, the
+DeepSeek's real model ids are `deepseek-flash` and `deepseek-v4-pro` — this
+repo's own measurement data (`data/DS-E2E-FLASH-MT32000-20261101.json`, real
+requests on 2026-11-01) and this proxy's own `/v1/models` listing both use
+them. The id was never fake; the allowlist was simply **too narrow**: an agent
+configured with *any other* DeepSeek model id was **routed to DeepSeek but
+never got the kernel**, and the 32000 output floor was never applied.
+
+And nothing errored anywhere: `/health` was 200, the self-test was green, the
 answer came back normally. The behaviour was identical to installing nothing.
+
+⇒ The default now admits **every `deepseek*` model id**, so a newly released
+DeepSeek model works without touching the config, and `deepseek-v4-pro` stays
+excluded through an explicit deny list (see below).
 
 A second trap the same day: the proxy prefers `HERMES_HOME/.env`, so on a
 machine that also runs Hermes it **inherited** Hermes'
@@ -71,8 +79,8 @@ machine that also runs Hermes it **inherited** Hermes'
 | Hermes plugin | `HERMES_JAILBREAK_DEEPSEEK_MODELS` | `HERMES_JAILBREAK_DEEPSEEK_MODELS_DENY` |
 | Proxy for external agents | `JBP_DEEPSEEK_MODELS` | `JBP_DEEPSEEK_MODELS_DENY` |
 
-Out of the box every `deepseek*` model id is admitted — `deepseek-chat`,
-`deepseek-reasoner`, `deepseek-v3.2`, … — and `deepseek-v4-pro` is excluded
+Out of the box every `deepseek*` model id is admitted — `deepseek-flash`,
+`deepseek-next`, `deepseek-next`, … — and `deepseek-v4-pro` is excluded
 (deliberately). Configure an allowlist only to narrow it.
 
 ---
@@ -81,14 +89,22 @@ Out of the box every `deepseek*` model id is admitted — `deepseek-chat`,
 
 ## ★ The allowlist (read this first)
 
-**Measured 2026-11-07.** The default allowlist shipped here was
-`deepseek-flash` — a **Hermes-internal tier alias that does not exist on
-DeepSeek's public API** (the public ids are `deepseek-chat` and
-`deepseek-reasoner`).
+**Measured 2026-11-07.** The default allowlist shipped here named exactly
+**one** model id.
 
-So requests from every real agent were **routed to DeepSeek but never got the
-kernel**, and nothing errored: `/health` was 200, the self-test was green, the
+DeepSeek's real model ids are `deepseek-flash` and `deepseek-v4-pro` — this
+repo's own measurement data (`data/DS-E2E-FLASH-MT32000-20261101.json`, real
+requests on 2026-11-01) and this proxy's own `/v1/models` listing both use
+them. The id was never fake; the allowlist was simply **too narrow**: an agent
+configured with *any other* DeepSeek model id was **routed to DeepSeek but
+never got the kernel**, and the 32000 output floor was never applied.
+
+And nothing errored anywhere: `/health` was 200, the self-test was green, the
 answer came back normally. The behaviour was identical to installing nothing.
+
+⇒ The default now admits **every `deepseek*` model id**, so a newly released
+DeepSeek model works without touching the config, and `deepseek-v4-pro` stays
+excluded through an explicit deny list (see below).
 
 A second trap the same day: the proxy prefers `HERMES_HOME/.env`, so on a
 machine that also runs Hermes it **inherited** Hermes'
@@ -101,8 +117,8 @@ machine that also runs Hermes it **inherited** Hermes'
 | Hermes plugin | `HERMES_JAILBREAK_DEEPSEEK_MODELS` | `HERMES_JAILBREAK_DEEPSEEK_MODELS_DENY` |
 | Proxy for external agents | `JBP_DEEPSEEK_MODELS` | `JBP_DEEPSEEK_MODELS_DENY` |
 
-Out of the box every `deepseek*` model id is admitted — `deepseek-chat`,
-`deepseek-reasoner`, `deepseek-v3.2`, … — and `deepseek-v4-pro` is excluded
+Out of the box every `deepseek*` model id is admitted — `deepseek-flash`,
+`deepseek-next`, `deepseek-next`, … — and `deepseek-v4-pro` is excluded
 (deliberately). Configure an allowlist only to narrow it.
 
 ---
@@ -173,9 +189,9 @@ cp -r deepseek-jailbreak-kernel/plugin ~/.hermes/plugins/deepseek-jailbreak-core
 
 ```bash
 # allowlist — OPTIONAL. The default already admits every deepseek* model id
-# (deepseek-chat, deepseek-reasoner, ...); deepseek-v4-pro is excluded.
+# (deepseek-flash, deepseek-next, ...); deepseek-v4-pro is excluded.
 # Only set this if you want to NARROW it, and use a real model id:
-echo 'HERMES_JAILBREAK_DEEPSEEK_MODELS=deepseek-chat,deepseek-reasoner' >> ~/.hermes/.env
+echo 'HERMES_JAILBREAK_DEEPSEEK_MODELS=deepseek-flash,deepseek-next' >> ~/.hermes/.env
 
 # reload without restarting sessions
 hermes plugins disable deepseek-jailbreak-core
@@ -205,8 +221,8 @@ DeepSeek endpoint. This proxy serves DeepSeek only.
 ## Verify
 
 ```bash
-python plugin/selftest.py            # expect 24 passed, 0 failed
-python proxy/proxy.py --self-test    # expect 116 checks, all passed
+python plugin/selftest.py            # expect 22 passed, 0 failed
+python proxy/proxy.py --self-test    # expect 125 checks, all passed
 python tools/audit-deepseek-jailbreak.py -v
 ```
 

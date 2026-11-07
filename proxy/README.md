@@ -5,7 +5,7 @@
 - OpenAI-compatible base: `http://127.0.0.1:8790/v1`
 - OpenAI Responses base: `http://127.0.0.1:8790/v1`
 - health: `http://127.0.0.1:8790/health`
-- model: **`deepseek-chat`** (or `deepseek-reasoner`)
+- model: **`deepseek-flash`** (or `deepseek-next`)
 
 **This is the proxy for external agents** — Cursor, Claude Code, Cline,
 Codex CLI, opencode, and anything else that can set a `base_url`.
@@ -53,7 +53,7 @@ does not read `HERMES_JAILBREAK_DEEPSEEK_MODELS` (that is the Hermes plugin's
 variable):
 
 ```bash
-export JBP_DEEPSEEK_MODELS=deepseek-chat,deepseek-reasoner
+export JBP_DEEPSEEK_MODELS=deepseek-flash,deepseek-next
 export JBP_DEEPSEEK_MODELS_DENY=deepseek-v4-pro
 ```
 
