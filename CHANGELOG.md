@@ -2,6 +2,35 @@
 
 ---
 
+## 1.1.4 — the plugin self-test depended on the host's environment
+
+**Measured, not guessed.** On a machine that has Hermes installed and whose
+`.env` contains `HERMES_JAILBREAK_DEEPSEEK_MODELS=deepseek-flash`, the plugin
+self-test reported:
+
+```
+FAIL any other deepseek* id allowlisted (deepseek-next)
+结果: 21 通过, 1 失败
+```
+
+while on a clean machine it reported `22 通过, 0 失败` for the very same
+files. Nothing was broken in the repository — the assertions check the
+**default** allowlist behaviour, but the plugin's `cfg()` reads
+`$HERMES_HOME/.env` **first** and `os.environ` second, so the host's
+configuration silently narrowed the allowlist.
+
+★ **Why this matters more than a flaky test**: an AI agent following
+`AGENTS.md` runs the self-test, sees `1 失败`, and concludes the install is
+broken — on a perfectly good checkout.
+
+Fixed: the allowlist assertions now run inside an **isolated environment**
+(`HERMES_HOME` pointed at an empty temp dir + the `HERMES_JAILBREAK_DEEPSEEK_*`
+variables removed), and the environment is restored afterwards. The self-test
+now reports **22 通过, 0 失败** on every machine, polluted or not.
+
+★ The proxy was never affected: it uses its own `JBP_DEEPSEEK_MODELS`
+namespace and therefore never inherits the host's allowlist.
+
 ## 1.1.3 — adult-request detection missed the words people actually use
 
 **Measured, not guessed.** After the adult clause was gated on the request's own
